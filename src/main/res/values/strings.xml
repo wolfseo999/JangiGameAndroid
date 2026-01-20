@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">장기 게임</string>
+    <string name="alone_mode">혼자두기</string>
+    <string name="together_mode">함께두기</string>
+    <string name="player_turn">차례: %1$s</string>
+    <string name="player_red">한</string>
+    <string name="player_blue">초</string>
+    <string name="game_over">게임 종료</string>
+    <string name="winner">승자: %1$s</string>
+    <string name="new_game">새 게임</string>
+    <string name="back">뒤로</string>
+</resources>
