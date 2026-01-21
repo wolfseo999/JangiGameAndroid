@@ -19,6 +19,11 @@ class GameBoardView @JvmOverloads constructor(
     private var selectedPosition: Position? = null
     private var possibleMoves: List<Position> = emptyList()
     private var onPieceMoveListener: ((Position, Position) -> Unit)? = null
+    
+    private var boardLeft = 0f
+    private var boardTop = 0f
+    private var boardWidth = 0f
+    private var boardHeight = 0f
 
     private val boardPaint = Paint().apply {
         color = ContextCompat.getColor(context, R.color.board_bg)
@@ -73,67 +78,103 @@ class GameBoardView @JvmOverloads constructor(
         this.onPieceMoveListener = listener
     }
 
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        
+        val width = MeasureSpec.getSize(widthMeasureSpec)
+        val height = MeasureSpec.getSize(heightMeasureSpec)
+        
+        // 장기판 비율 9:10 (가로:세로)
+        val boardRatio = 9f / 10f
+        
+        // 사용 가능한 공간에서 장기판 크기 계산
+        val availableWidth = width - paddingLeft - paddingRight
+        val availableHeight = height - paddingTop - paddingBottom
+        
+        if (availableWidth / availableHeight > boardRatio) {
+            // 높이를 기준으로 크기 결정
+            boardHeight = availableHeight.toFloat()
+            boardWidth = boardHeight * boardRatio
+        } else {
+            // 너비를 기준으로 크기 결정
+            boardWidth = availableWidth.toFloat()
+            boardHeight = boardWidth / boardRatio
+        }
+        
+        // 중앙 정렬을 위한 오프셋 계산
+        boardLeft = paddingLeft + (availableWidth - boardWidth) / 2f
+        boardTop = paddingTop + (availableHeight - boardHeight) / 2f
+        
+        setMeasuredDimension(width, height)
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val state = gameState ?: return
 
-        val width = width.toFloat()
-        val height = height.toFloat()
-        val cellWidth = width / 9f
-        val cellHeight = height / 10f
+        val cellWidth = boardWidth / 8f
+        val cellHeight = boardHeight / 9f
 
         // 배경 그리기
-        canvas.drawRect(0f, 0f, width, height, boardPaint)
+        canvas.drawRect(boardLeft, boardTop, boardLeft + boardWidth, boardTop + boardHeight, boardPaint)
 
         // 보드 선 그리기
         linePaint.strokeWidth = 2f
         for (i in 0..9) {
-            val y = i * cellHeight
-            canvas.drawLine(0f, y, width, y, linePaint)
+            val y = boardTop + i * cellHeight
+            canvas.drawLine(boardLeft, y, boardLeft + boardWidth, y, linePaint)
         }
         for (i in 0..8) {
-            val x = i * cellWidth
-            canvas.drawLine(x, 0f, x, height, linePaint)
+            val x = boardLeft + i * cellWidth
+            canvas.drawLine(x, boardTop, x, boardTop + boardHeight, linePaint)
         }
 
         // 궁성 그리기
-        linePaint.strokeWidth = 4f
-        // 한궁
-        canvas.drawLine(3 * cellWidth, 7 * cellHeight, 5 * cellWidth, 7 * cellHeight, linePaint)
-        canvas.drawLine(3 * cellWidth, 7 * cellHeight, 3 * cellWidth, 9 * cellHeight, linePaint)
-        canvas.drawLine(5 * cellWidth, 7 * cellHeight, 5 * cellWidth, 9 * cellHeight, linePaint)
-        canvas.drawLine(3 * cellWidth, 9 * cellHeight, 5 * cellWidth, 9 * cellHeight, linePaint)
-        canvas.drawLine(4 * cellWidth, 7 * cellHeight, 4 * cellWidth, 9 * cellHeight, linePaint)
+        linePaint.strokeWidth = 3f
+        // 한궁 (빨간색 - 하단)
+        val hanPalaceLeft = boardLeft + 3 * cellWidth
+        val hanPalaceTop = boardTop + 7 * cellHeight
+        val hanPalaceRight = boardLeft + 5 * cellWidth
+        val hanPalaceBottom = boardTop + 9 * cellHeight
+        val hanPalaceCenterX = boardLeft + 4 * cellWidth
+        canvas.drawLine(hanPalaceLeft, hanPalaceTop, hanPalaceRight, hanPalaceBottom, linePaint)
+        canvas.drawLine(hanPalaceRight, hanPalaceTop, hanPalaceLeft, hanPalaceBottom, linePaint)
 
-        // 초궁
-        canvas.drawLine(3 * cellWidth, 0f, 5 * cellWidth, 0f, linePaint)
-        canvas.drawLine(3 * cellWidth, 0f, 3 * cellWidth, 2 * cellHeight, linePaint)
-        canvas.drawLine(5 * cellWidth, 0f, 5 * cellWidth, 2 * cellHeight, linePaint)
-        canvas.drawLine(3 * cellWidth, 2 * cellHeight, 5 * cellWidth, 2 * cellHeight, linePaint)
-        canvas.drawLine(4 * cellWidth, 0f, 4 * cellWidth, 2 * cellHeight, linePaint)
+        // 초궁 (파란색 - 상단)
+        val choPalaceLeft = boardLeft + 3 * cellWidth
+        val choPalaceTop = boardTop
+        val choPalaceRight = boardLeft + 5 * cellWidth
+        val choPalaceBottom = boardTop + 2 * cellHeight
+        val choPalaceCenterX = boardLeft + 4 * cellWidth
+        canvas.drawLine(choPalaceLeft, choPalaceTop, choPalaceRight, choPalaceBottom, linePaint)
+        canvas.drawLine(choPalaceRight, choPalaceTop, choPalaceLeft, choPalaceBottom, linePaint)
 
         // 선택된 위치 표시
         selectedPosition?.let { pos ->
-            val x = pos.col * cellWidth
-            val y = pos.row * cellHeight
-            canvas.drawRect(x, y, x + cellWidth, y + cellHeight, selectedPaint)
+            val x = boardLeft + pos.col * cellWidth
+            val y = boardTop + pos.row * cellHeight
+            val radius = minOf(cellWidth, cellHeight) * 0.4f
+            canvas.drawCircle(x, y, radius, selectedPaint)
         }
 
         // 가능한 이동 위치 표시
         possibleMoves.forEach { pos ->
-            val x = pos.col * cellWidth
-            val y = pos.row * cellHeight
-            canvas.drawRect(x, y, x + cellWidth, y + cellHeight, possiblePaint)
+            val x = boardLeft + pos.col * cellWidth
+            val y = boardTop + pos.row * cellHeight
+            val radius = minOf(cellWidth, cellHeight) * 0.25f
+            canvas.drawCircle(x, y, radius, possiblePaint)
         }
 
-        // 말 그리기
-        textPaint.textSize = cellHeight * 0.4f
+        // 말 그리기 (선의 교차점에 위치)
+        textPaint.textSize = minOf(cellWidth, cellHeight) * 0.3f
+        val pieceRadius = minOf(cellWidth, cellHeight) * 0.35f
         for (row in 0..9) {
             for (col in 0..8) {
                 val piece = state.getPiece(Position(row, col))
                 if (piece != null) {
-                    val x = col * cellWidth + cellWidth / 2
-                    val y = row * cellHeight + cellHeight / 2
+                    // 선의 교차점에 말을 배치
+                    val x = boardLeft + col * cellWidth
+                    val y = boardTop + row * cellHeight
 
                     // 말 배경 원
                     piecePaint.color = if (piece.player == Player.RED) {
@@ -141,8 +182,7 @@ class GameBoardView @JvmOverloads constructor(
                     } else {
                         ContextCompat.getColor(context, R.color.blue_piece)
                     }
-                    val radius = cellWidth * 0.35f
-                    canvas.drawCircle(x, y, radius, piecePaint)
+                    canvas.drawCircle(x, y, pieceRadius, piecePaint)
 
                     // 말 이름
                     textPaint.color = ContextCompat.getColor(context, R.color.white)
@@ -159,11 +199,21 @@ class GameBoardView @JvmOverloads constructor(
         val state = gameState ?: return false
         if (state.isGameOver()) return false
 
-        val cellWidth = width / 9f
-        val cellHeight = height / 10f
+        val cellWidth = boardWidth / 8f
+        val cellHeight = boardHeight / 9f
 
-        val col = (event.x / cellWidth).toInt()
-        val row = (event.y / cellHeight).toInt()
+        // 터치 위치를 보드 좌표로 변환
+        val touchX = event.x - boardLeft
+        val touchY = event.y - boardTop
+        
+        // 보드 영역 밖이면 무시
+        if (touchX < 0 || touchX > boardWidth || touchY < 0 || touchY > boardHeight) {
+            return false
+        }
+
+        // 터치 위치를 가장 가까운 선의 교차점으로 변환
+        val col = (touchX / cellWidth + 0.5f).toInt().coerceIn(0, 8)
+        val row = (touchY / cellHeight + 0.5f).toInt().coerceIn(0, 9)
 
         if (row !in 0..9 || col !in 0..8) return false
 
